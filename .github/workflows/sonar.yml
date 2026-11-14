@@ -40,9 +40,16 @@ jobs:
           printf '#!/bin/sh\nexec /usr/bin/google-chrome --no-sandbox "$@"\n' > /tmp/chrome-ci
           chmod +x /tmp/chrome-ci
           echo "CHROME_BIN=/tmp/chrome-ci" >> "$GITHUB_ENV"
-
+      
       - name: Run unit tests with coverage
-        run: npm test -- --watch=false --browsers=ChromeHeadless --code-coverage
+        shell: bash
+        run: |
+          if find src -type f -name '*.spec.ts' | grep -q .; then
+            npm test -- --watch=false --browsers=ChromeHeadless --code-coverage
+          else
+            echo "No se encontraron pruebas unitarias."
+            echo "Cobertura no disponible."
+          fi
 
       - name: SonarQube Scan
         uses: SonarSource/sonarqube-scan-action@v8.4.0
