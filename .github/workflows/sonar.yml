@@ -1,0 +1,57 @@
+
+name: SonarQube - Build and Analyze
+
+on:
+  push:
+    branches:
+      - master
+  pull_request:
+    types: [opened, synchronize, reopened]
+
+permissions:
+  contents: read
+  pull-requests: read
+
+jobs:
+  build:
+    name: Build, Test and Analyze
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '14'
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Build Angular application
+        run: npm run build
+
+      - name: Configure Chrome for tests
+        run: |
+          printf '#!/bin/sh\nexec /usr/bin/google-chrome --no-sandbox "$@"\n' > /tmp/chrome-ci
+          chmod +x /tmp/chrome-ci
+          echo "CHROME_BIN=/tmp/chrome-ci" >> "$GITHUB_ENV"
+
+      - name: Run unit tests with coverage
+        run: npm test -- --watch=false --browsers=ChromeHeadless --code-coverage
+
+      - name: SonarQube Scan
+        uses: SonarSource/sonarqube-scan-action@v8.4.0
+        env:
+          SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
+        with:
+          args: >
+            -Dsonar.organization=dfaggioliv
+            -Dsonar.projectKey=DFaggioliv_angular-realworld-example-app
+            -Dsonar.sources=src
+            -Dsonar.exclusions=**/node_modules/**,**/dist/**
+            -Dsonar.javascript.lcov.reportPaths=coverage/lcov.info
